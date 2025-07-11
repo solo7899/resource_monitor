@@ -1,3 +1,4 @@
+import os
 import time
 import psutil
 
@@ -14,7 +15,6 @@ def get_usage(interval=1):
     return cpu_usage, memory_usage
 
 def get_top_processes(n=8):
-    """Get the top n processes by MEMORY usage."""
     all_processes = list(psutil.process_iter(['pid', 'name', 'memory_percent', 'cpu_percent']))
     for p in all_processes:
         try:
@@ -30,27 +30,28 @@ def get_top_processes(n=8):
     processes.sort(key=lambda x: x[2], reverse=True)
     return processes[:n]
 
-def display_usage_panel():
-    """Create a panel displaying CPU and memory usage."""
+def display_usage_panel(size):
     cpu, memory = get_usage()
-    panel_content = f"\nCPU Usage: {cpu:5>.2f}%\n{"".join(['|' if i < cpu%100 else '.' for i in range(100)])}\n\nMemory Usage: {memory:.2f}%\n{''.join(['|' if i < memory%100 else '.' for i in range(100)])}\n"
+    panel_content = f"\nCPU Usage: {cpu:5>.2f}%\n{"".join(['|' if i < (cpu%100)-1 else '.' for i in range(100)])}\n\nMemory Usage: {memory:.2f}%\n{''.join(['|' if i < (memory%100)-1 else '.' for i in range(100)])}\n"
     return Panel(panel_content, title="System Resource Usage", border_style="blue", height=10)
 
-def display_processes_table():
-    processes = get_top_processes()
+def display_processes_table(size):
+    _, lines =os.get_terminal_size()
+    processes = get_top_processes(3*(lines//4)-3)
     panel_content = ""
-    panel_content += f"{'PID':<8}\t{'Process Name':<20}\t{'Memory %':>10}\t{'CPU %':>10}\n"
+    panel_content += f"{'PID':<8}\t{'Process Name':<20}\t{'Memory %':>10}\t{'CPU %':>10}\n\n"
     for p in processes:
         panel_content += f"{p[0]:<8}\t{p[1][:17]:<17}{'...' if len(p[1]) > 17 else '':<3}\t{p[2]:>6.2f} %\t{p[3]:>9.2f}%\n"
-    return Panel(panel_content, title="Top Processes", border_style="blue", height=10)
+    return Panel(panel_content, title="Top Processes", border_style="blue", height=None)
 
 def display_usage_and_processes():
+    _, lines =os.get_terminal_size()
     layout =Layout()
     layout.split_column(
-        Layout(display_usage_panel()),
-        Layout(display_processes_table())
+        Layout(display_usage_panel(lines//4), size=lines//4),
+        Layout(display_processes_table(lines - lines//4), size=lines - lines//4),
     )
-    return Panel(layout, title="Resource Monitor", border_style="green", height=25)
+    return Panel(layout, title="Resource Monitor", border_style="green", height=lines)
 
 if __name__ == "__main__":
     console = Console()
